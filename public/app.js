@@ -13,13 +13,9 @@ class Block {
 
 const blockchain = [];
 
-async function calculateHash(block) {
-    const encoder = new TextEncoder();
-    const data = encoder.encode(
-        block.index + block.timestamp + JSON.stringify(block.data) + block.previousHash
-    );
-    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-    return Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
+function calculateHash(block) {
+    const str = block.index + block.timestamp + JSON.stringify(block.data) + block.previousHash;
+    return sha256(str);
 }
 
 function renderBlockchain() {
@@ -57,12 +53,12 @@ async function loadBlockchain() {
 }
 
 // Modificar addBlock para guardar después de agregar
-async function addBlock(data) {
+function addBlock(data) {
     const index = blockchain.length;
     const timestamp = new Date().toISOString();
     const previousHash = index > 0 ? blockchain[blockchain.length - 1].hash : "0";
     const block = new Block(index, timestamp, data, previousHash);
-    block.hash = await calculateHash(block);
+    block.hash = calculateHash(block);
     blockchain.push(block);
     console.log("Bloque agregado:", block);
     saveBlockchain();
@@ -71,14 +67,14 @@ async function addBlock(data) {
 
 // Modificar el submit para agregar el bloque
 
-document.addEventListener('DOMContentLoaded', async () => {
+document.addEventListener('DOMContentLoaded', () => {
     const form = document.getElementById('txForm');
-    form.addEventListener('submit', async (e) => {
+    form.addEventListener('submit', (e) => {
         e.preventDefault();
         const producto = document.getElementById('producto').value;
         const comprador = document.getElementById('comprador').value;
         const cantidad = document.getElementById('cantidad').value;
-        await addBlock({ producto, comprador, cantidad });
+        addBlock({ producto, comprador, cantidad });
         form.reset();
     });
     // Agregar contenedor visual si no existe
@@ -137,9 +133,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Mover los botones dentro del contenedor centrado
     if (dlBtn && dlBtn.parentNode !== actionsDiv) actionsDiv.appendChild(dlBtn);
     if (importBtn && importBtn.parentNode !== actionsDiv) actionsDiv.appendChild(importBtn);
-    if (importInput && importInput.parentNode !== actionsDiv) actionsDiv.appendChild(importInput);
-    await loadBlockchain();
-    renderBlockchain();
+    if (importInput && importInput.parentNode !== actionsDiv) actionsDiv.appendChild(importInput);    loadBlockchain().then(renderBlockchain);
 });
 
 // Descargar blockchain como JSON
