@@ -37,18 +37,30 @@ function saveBlockchain() {
     localStorage.setItem('blockchain', JSON.stringify(blockchain));
 }
 
-// Cargar blockchain desde localStorage
+// Cargar blockchain desde la Raspberry Pi
 async function loadBlockchain() {
-    const data = localStorage.getItem('blockchain');
-    if (data) {
-        const arr = JSON.parse(data);
+    try {
+        const response = await fetch('http://192.168.14.49:8000/bloques'); // endpoint que devuelve las transacciones
+        const arr = await response.json();
         blockchain.length = 0; // Limpiar array
         for (const b of arr) {
-            // Reconstruir cada bloque y recalcular el hash para seguridad
-            const block = new Block(b.index, b.timestamp, b.data, b.previousHash);
+            // Reconstruir cada bloque según la estructura de la tabla transacciones
+            const block = new Block(
+                b.id, // index
+                b.fecha || '', // timestamp (ajusta si tienes un campo de fecha)
+                {
+                    producto: b.producto,
+                    comprador: b.comprador,
+                    cantidad: b.cantidad
+                },
+                '' // previousHash (no se almacena en la tabla, opcional)
+            );
             block.hash = b.hash;
             blockchain.push(block);
         }
+        renderBlockchain();
+    } catch (err) {
+        console.error('Error al cargar blockchain desde la Raspberry:', err);
     }
 }
 
