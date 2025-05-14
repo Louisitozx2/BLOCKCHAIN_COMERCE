@@ -54,6 +54,15 @@ async function loadBlockchain() {
 
 // Modificar addBlock para guardar después de agregar
 function addBlock(data) {
+    const productoSel = productosDisponibles.find(p =>
+        p.id == data.producto || p.nombre == data.producto || p.codigo == data.producto
+    );
+    if (productoSel && productoSel.cantidad !== undefined) {
+        if (parseInt(data.cantidad) > productoSel.cantidad) {
+            alert(`No puedes vender más de la cantidad disponible (${productoSel.cantidad})`);
+            return;
+        }
+    }
     const index = blockchain.length;
     const timestamp = new Date().toISOString();
     const previousHash = index > 0 ? blockchain[blockchain.length - 1].hash : "0";
@@ -63,6 +72,28 @@ function addBlock(data) {
     console.log("Bloque agregado:", block);
     saveBlockchain();
     renderBlockchain();
+
+    // Enviar la compra a la Raspberry Pi (endpoint actualizado)
+    fetch('http://192.168.14.49:8000/transacciones', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            producto: data.producto,
+            comprador: data.comprador,
+            vendedor: 'Vendedor', // Cambia esto si tienes el dato real
+            cantidad: data.cantidad,
+            hash: block.hash
+        })
+    })
+    .then(res => res.json())
+    .then(res => {
+        console.log('Respuesta de la Raspberry:', res);
+    })
+    .catch(err => {
+        console.error('Error al enviar la compra:', err);
+    });
 }
 
 // Modificar el submit para agregar el bloque
@@ -136,6 +167,52 @@ document.addEventListener('DOMContentLoaded', () => {
     if (importInput && importInput.parentNode !== actionsDiv) actionsDiv.appendChild(importInput);    loadBlockchain().then(renderBlockchain);
 });
 
+let productosDisponibles = [];
+
+// Función para cargar productos desde la API de la Raspberry Pi y llenar el desplegable
+function cargarProductos() {
+    // Cambia la URL por la IP y puerto de tu Raspberry Pi
+    const url = 'http://192.168.14.49:8000/productos';
+    fetch(url)
+        .then(response => response.json())
+        .then(productos => {
+            productosDisponibles = productos; // Guardar productos para validación
+            console.log('Productos recibidos:', productos); // <-- Agrega este log para depuración
+            const select = document.getElementById('producto');
+            select.innerHTML = '';
+            productos.forEach(producto => {
+                // Ajusta el campo a mostrar según tu base de datos, por ejemplo producto.nombre
+                const option = document.createElement('option');
+                option.value = producto.id || producto.nombre || producto.codigo || '';
+                // Mostrar nombre y cantidad disponible
+                option.textContent = (producto.nombre || producto.descripcion || producto.id) +
+                    (producto.cantidad !== undefined ? ` (Disponible: ${producto.cantidad})` : '');
+                select.appendChild(option);
+            });
+            // Mostrar cantidad disponible del producto seleccionado
+            mostrarCantidadDisponible();
+            select.addEventListener('change', mostrarCantidadDisponible);
+        })
+        .catch(err => {
+            console.error('Error al cargar productos:', err);
+        });
+}
+
+function mostrarCantidadDisponible() {
+    const select = document.getElementById('producto');
+    const cantidadInput = document.getElementById('cantidad');
+    const productoSel = productosDisponibles.find(p =>
+        p.id == select.value || p.nombre == select.value || p.codigo == select.value
+    );
+    if (productoSel && productoSel.cantidad !== undefined) {
+        cantidadInput.max = productoSel.cantidad;
+        cantidadInput.placeholder = `Máx: ${productoSel.cantidad}`;
+    } else {
+        cantidadInput.removeAttribute('max');
+        cantidadInput.placeholder = '';
+    }
+}
+
 // Descargar blockchain como JSON
 function downloadBlockchain() {
     const dataStr = JSON.stringify(blockchain, null, 2);
@@ -172,3 +249,8 @@ function importBlockchainFromFile(file) {
     };
     reader.readAsText(file);
 }
+
+document.addEventListener('DOMContentLoaded', () => {
+    cargarProductos();
+    // ...existing code...
+});
