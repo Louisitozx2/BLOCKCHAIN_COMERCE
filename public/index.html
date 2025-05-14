@@ -12,7 +12,9 @@
         <h2>Registrar Transacción</h2>
         <form id="txForm">
             <label for="producto">Producto:</label>
-            <select id="producto" name="producto" required></select><br><br>
+            <select id="producto" name="producto" required style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #ccc; background: #f8fafd; font-size: 1rem; margin-bottom: 1rem; transition: border-color 0.2s;">
+                <option value="" disabled selected>Selecciona un producto...</option>
+            </select><br><br>
             <label for="comprador">Comprador:</label>
             <input type="text" id="comprador" name="comprador" required><br><br>
             <label for="cantidad">Cantidad:</label>
